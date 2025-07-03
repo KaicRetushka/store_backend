@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select
+from sqlalchemy import select, LargeBinary, ForeignKey
+
+
 
 engine = create_async_engine("sqlite+aiosqlite:///database/mydb.db")
 
@@ -20,8 +22,18 @@ class CategoriesModel(Base):
     __tablename__ = "categories"
     name: Mapped[str]
 
+class ProductsModel(Base):
+    __tablename__ = "products"
+    name: Mapped[str]
+    price: Mapped[float]
+    description: Mapped[str]
+    image: Mapped[str]
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
+    salesman_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
 async def create_db():
     async with engine.begin() as conn:
+        # await conn.execute(text("PRAGMA foreign_keys = ON"))
         await conn.run_sync(Base.metadata.create_all)
     async with Session() as session:
         query = select(UsersModel).filter(UsersModel.role == "Admin")

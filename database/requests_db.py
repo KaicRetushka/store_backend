@@ -1,6 +1,10 @@
+from dns.e164 import query
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import text
+import base64
 
-from database.models import Session, UsersModel, CategoriesModel
+from database.models import Session, UsersModel, CategoriesModel, ProductsModel
 
 async def insert_user(email, password, name):
     async with Session() as session:
@@ -88,14 +92,19 @@ async def select_categories():
 
 async def delete_category(id):
     async with Session() as session:
+        await session.execute(text("PRAGMA foreign_keys = ON"))
         query = select(CategoriesModel).filter(CategoriesModel.id == id)
         category = await session.execute(query)
         category = category.scalar_one_or_none()
         if not(category):
             return {"status_code": 410, "detail": "Такой категории и так не существует"}
-        await session.delete(category)
-        await session.commit()
-        return {"status_code": 200, "detail": f"Категория с id {id} удалена"}
+        try:
+            await session.delete(category)
+            await session.commit()
+            return {"status_code": 200, "detail": f"Категория с id {id} удалена"}
+        except IntegrityError:
+            return {"status_code": 409, "detail": "Товары с таккой категорией существуют"}
+
 
 async def update_category(id, name):
     async with Session() as session:
@@ -111,3 +120,95 @@ async def update_category(id, name):
         category.name = name
         await session.commit()
         return {"status_code": 200, "detail": "Категория изменена"}
+
+async def insert_product(name, price, description, image_bytes, category_id, user_id):
+    async with Session() as session:
+        await session.execute(text("PRAGMA foreign_keys = ON"))
+        query = select(CategoriesModel).filter(CategoriesModel.id == category_id)
+        category = await session.execute(query)
+        if not(category.first()):
+            return False
+        image = base64.b64encode(image_bytes).decode("utf-8")
+        product = ProductsModel(name=name, price=price, description=description, image=image, category_id=category_id,
+                                salesman_id=user_id)
+        session.add(product)
+        await session.commit()
+        return {"product_id": product.id, "image": image}
+
+async def select_products():
+    async with Session() as session:
+        query = select(ProductsModel)
+        products = await session.execute(query)
+        products = products.scalars().all()
+        products_list = []
+        for product in products:
+            products_list.append({"id": product.id, "name": product.name, "price": product.price,
+                                  "description": product.description, "image": product.image,
+                                  "category_id": product.category_id})
+        return products_list
+
+async def select_product(id):
+    async with Session() as session:
+        query = select(ProductsModel).filter(ProductsModel.id == id)
+        product = await session.execute(query)
+        product = product.scalars().first()
+        if product:
+            return {"id": product.id, "name": product.name, "price": product.price, "description": product.description,
+                    "image": product.image, "category_id": product.category_id}
+        return False
+
+async def update_product(name, price, description, image_bytes, category_id, user_id, product_id):
+    async with Session() as session:
+        is_admin = await check_admin(user_id)
+        if is_admin:
+            query = select(ProductsModel).filter(ProductsModel.id == product_id)
+        else:
+            query = select(ProductsModel).filter((ProductsModel.id == product_id) &
+                                                 (ProductsModel.salesman_id == user_id))
+        product = await session.execute(query)
+        product = product.scalars().first()
+        if not product:
+            return {"status_code": 409, "detail": "У вас нет продукта с таким id нет"}
+        product.name = name or product.name
+        product.price = price or product.price
+        product.description = description or product.description
+        if image_bytes:
+            image = base64.b64encode(image_bytes).decode("utf-8")
+            product.image = image
+        query = select(CategoriesModel).filter(CategoriesModel.id == category_id)
+        if category_id:
+            category = await session.execute(query)
+            if not category.first():
+                return {"status_code": 409, "detail": "Категории стаким id нет"}
+            product.category_id = category_id
+        await session.commit()
+        return {"status_code": 200, "product_info": {"id": product.id, "name": product.name, "price": product.price,
+                                                     "description": product.description, "image": product.image,
+                                                     "category_id": product.category_id}}
+
+async def delete_product(product_id, user_id):
+    async with Session() as session:
+        is_admin = await check_admin(user_id)
+        if is_admin:
+            query = select(ProductsModel).filter(ProductsModel.id == product_id)
+        else:
+            query = select(ProductsModel).filter((ProductsModel.id == product_id) & (ProductsModel.salesman_id == user_id))
+        product = await session.execute(query)
+        product = product.scalars().first()
+        if not product:
+            return False
+        await session.delete(product)
+        await session.commit()
+        return True
+
+async def select_product_me(user_id):
+    async with Session() as session:
+        query = select(ProductsModel).filter(ProductsModel.salesman_id == user_id)
+        products = await session.execute(query)
+        products = products.scalars().all()
+        products_list = []
+        for product in products:
+            products_list.append({"id": product.id, "name": product.name, "price": product.price,
+                                  "description": product.description, "image": product.image,
+                                  "category_id": product.category_id})
+        return products_list

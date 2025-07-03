@@ -25,7 +25,7 @@ async def post_categories(body: CategoryAddSchema, request: Request) -> Category
         raise HTTPException(status_code=409, detail="Такая категория уже существует")
     return {"id": category_id, "name": body.name}
 
-@categories_router.put("/{", tags=["Категории (Categories)"],
+@categories_router.put("/", tags=["Категории (Categories)"],
                         dependencies=[Depends(security.access_token_required)])
 async def put_categories(body: CategoryInfoSchema, request: Request) -> DetailReturnSchema:
     token = request.cookies[config.JWT_ACCESS_COOKIE_NAME]
@@ -47,6 +47,6 @@ async def delete_categories(id: int, request: Request) -> DetailReturnSchema:
     if not (is_admin):
         raise HTTPException(status_code=403, detail="Вы не являетесь администратором")
     response_db = await delete_category(id)
-    if response_db["status_code"] == 410:
+    if response_db["status_code"] != 200:
         raise HTTPException(status_code=response_db["status_code"], detail=response_db["detail"])
     return {"detail": response_db["detail"]}

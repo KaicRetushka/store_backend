@@ -4,6 +4,7 @@ from authx.exceptions import MissingTokenError, JWTDecodeError
 import uvicorn
 import asyncio
 
+from routers.products_router import products_router
 from routers.auth_router import auth_router
 from routers.categories_router import categories_router
 from database.models import create_db
@@ -18,6 +19,7 @@ app.add_middleware(
     allow_origins=["*"]
 )
 
+app.include_router(products_router)
 app.include_router(router=auth_router)
 app.include_router(router=categories_router)
 

@@ -31,3 +31,11 @@ class CategoryInfoSchema(BaseModel):
 
 class DetailReturnSchema(BaseModel):
     detail: str
+
+class ProductInfoSchema(BaseModel):
+    id: int
+    name: str
+    price: float
+    description: str
+    image: str
+    category_id: int
