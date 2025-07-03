@@ -4,8 +4,9 @@ from authx.exceptions import MissingTokenError, JWTDecodeError
 import uvicorn
 import asyncio
 
-from auth_router import auth_router
-from models import create_db
+from routers.auth_router import auth_router
+from routers.categories_router import categories_router
+from database.models import create_db
 
 app = FastAPI()
 
@@ -18,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(router=auth_router)
+app.include_router(router=categories_router)
 
 @app.exception_handler(MissingTokenError)
 async def missing_token(request, exc):

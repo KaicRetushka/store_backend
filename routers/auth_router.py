@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response, Depends, Request
 
 from  pydantic_classes import UserLoginSchema, UserAddSchema, TokenReturnSchema, UserInfoReturnSchema, UserChangeSchema
-from requests_db import insert_user, check_user, select_user, update_user
+from database.requests_db import insert_user, check_user, select_user, update_user
 from jwt_settings import config, security
 
 auth_router = APIRouter(prefix="/api/auth")

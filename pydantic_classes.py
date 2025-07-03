@@ -21,3 +21,13 @@ class UserInfoReturnSchema(BaseModel):
 class UserChangeSchema(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+
+class CategoryAddSchema(BaseModel):
+    name: str
+
+class CategoryInfoSchema(BaseModel):
+    id: int
+    name: str
+
+class DetailReturnSchema(BaseModel):
+    detail: str
