@@ -7,13 +7,14 @@ from database.requests_db import check_admin, insert_category, select_categories
 
 categories_router = APIRouter(prefix="/api/categories")
 
-@categories_router.get("/", tags=["Категории (Categories)"])
+@categories_router.get("/", tags=["Категории (Categories)"], description="Возращает все категори")
 async def get_categories() -> List[CategoryInfoSchema]:
     categories_list = await select_categories()
     return categories_list
 
 @categories_router.post("/", tags=["Категории (Categories)"],
-                        dependencies=[Depends(security.access_token_required)])
+                        dependencies=[Depends(security.access_token_required)],
+                        description="Создает новую категорию, создавать может только админ")
 async def post_categories(body: CategoryAddSchema, request: Request) -> CategoryInfoSchema:
     token = request.cookies[config.JWT_ACCESS_COOKIE_NAME]
     user_id = int(security._decode_token(token).sub)
@@ -26,7 +27,7 @@ async def post_categories(body: CategoryAddSchema, request: Request) -> Category
     return {"id": category_id, "name": body.name}
 
 @categories_router.put("/", tags=["Категории (Categories)"],
-                        dependencies=[Depends(security.access_token_required)])
+                        dependencies=[Depends(security.access_token_required)], description="Изменяет категорию")
 async def put_categories(body: CategoryInfoSchema, request: Request) -> DetailReturnSchema:
     token = request.cookies[config.JWT_ACCESS_COOKIE_NAME]
     user_id = int(security._decode_token(token).sub)
@@ -39,7 +40,7 @@ async def put_categories(body: CategoryInfoSchema, request: Request) -> DetailRe
     return {"detail": response_db["detail"]}
 
 @categories_router.delete("/{id}", tags=["Категории (Categories)"],
-                        dependencies=[Depends(security.access_token_required)])
+                        dependencies=[Depends(security.access_token_required)], description="Удаляет категорию")
 async def delete_categories(id: int, request: Request) -> DetailReturnSchema:
     token = request.cookies[config.JWT_ACCESS_COOKIE_NAME]
     user_id = int(security._decode_token(token).sub)

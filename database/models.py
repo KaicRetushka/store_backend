@@ -1,8 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import select, LargeBinary, ForeignKey
-
-
+from sqlalchemy import select, LargeBinary, ForeignKey, JSON
 
 engine = create_async_engine("sqlite+aiosqlite:///database/mydb.db")
 
@@ -37,6 +35,13 @@ class CartModel(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     quantity: Mapped[int]
     price: Mapped[int]
+
+class OrdersModel(Base):
+    __tablename__ = "orders"
+    products_list: Mapped[list] = mapped_column(JSON)
+    full_price: Mapped[int]
+    status: Mapped[str]
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
 async def create_db():
     async with engine.begin() as conn:

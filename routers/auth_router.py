@@ -6,7 +6,7 @@ from jwt_settings import config, security
 
 auth_router = APIRouter(prefix="/api/auth")
 
-@auth_router.post("/register", tags=["Пользователи (Auth & Users)"])
+@auth_router.post("/register", tags=["Пользователи (Auth & Users)"], description="Регистрация")
 async def register(body: UserAddSchema, response: Response) -> TokenReturnSchema:
     response_db = await insert_user(body.email, body.password, body.name)
     if response_db:
@@ -19,7 +19,7 @@ async def register(body: UserAddSchema, response: Response) -> TokenReturnSchema
         return {"token": token}
     raise HTTPException(status_code=409, detail="Такая почта уже занята")
 
-@auth_router.post("/login", tags=["Пользователи (Auth & Users)"])
+@auth_router.post("/login", tags=["Пользователи (Auth & Users)"], description="Вход")
 async def login(body: UserLoginSchema, response: Response) -> TokenReturnSchema:
     response_db = await check_user(body.email, body.password)
     if response_db:
@@ -33,7 +33,8 @@ async def login(body: UserLoginSchema, response: Response) -> TokenReturnSchema:
     raise HTTPException(status_code=404, detail="Неверная почта или пароль")
 
 @auth_router.get("/me", tags=["Пользователи (Auth & Users)"],
-                 dependencies=[Depends(security.access_token_required)])
+                 dependencies=[Depends(security.access_token_required)],
+                 description="Возращает данные о текущем пользователе")
 async def get_me(request: Request) -> UserInfoReturnSchema:
     token = request.cookies[config.JWT_ACCESS_COOKIE_NAME]
     user_id = int(security._decode_token(token).sub)
@@ -41,7 +42,8 @@ async def get_me(request: Request) -> UserInfoReturnSchema:
     return user_info
 
 @auth_router.put("/me", tags=["Пользователи (Auth & Users)"],
-                 dependencies=[Depends(security.access_token_required)])
+                 dependencies=[Depends(security.access_token_required)],
+                 description="Изменяет данные о текущем пользователе")
 async def put_me(body: UserChangeSchema, request: Request) -> UserInfoReturnSchema:
     token = request.cookies[config.JWT_ACCESS_COOKIE_NAME]
     user_id = int(security._decode_token(token).sub)

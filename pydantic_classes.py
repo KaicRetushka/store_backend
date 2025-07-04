@@ -56,3 +56,21 @@ class ReturnCartSchema(BaseModel):
 
 class PutProductInCartSchema(BaseModel):
     quantity: PositiveInt
+
+class ProductInOrderSchema(BaseModel):
+    name: str
+    description: str
+    image: str
+    price: float
+    category: str
+    price_all: float
+    quantity: PositiveInt
+
+class OrderInfoSchema(BaseModel):
+    id: PositiveInt
+    full_price: float
+    status: str
+    products_list: List[ProductInOrderSchema]
+
+class ChangeStatusSchema(BaseModel):
+    status: str

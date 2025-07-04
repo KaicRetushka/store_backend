@@ -1,10 +1,9 @@
-from dns.e164 import query
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import text
 import base64
 
-from database.models import Session, UsersModel, CategoriesModel, ProductsModel, CartModel
+from database.models import Session, UsersModel, CategoriesModel, ProductsModel, CartModel, OrdersModel
 
 async def insert_user(email, password, name):
     async with Session() as session:
@@ -279,3 +278,97 @@ async def delete_product_in_cart(product_id, user_id):
         await session.delete(product_in_cart)
         await session.commit()
         return True
+
+async def move_to_order(user_id):
+    async with Session() as session:
+        query = select(CartModel).filter(CartModel.user_id == user_id)
+        products_in_cart = await session.execute(query)
+        products_in_cart = products_in_cart.scalars().all()
+        if len(products_in_cart) == 0:
+            return False
+        products_list = []
+        full_price = 0
+        for product_in_cart in products_in_cart:
+            full_price += product_in_cart.price
+            query = select(ProductsModel).filter(ProductsModel.id == product_in_cart.product_id)
+            product = await session.execute(query)
+            product = product.scalar_one()
+            query = select(CategoriesModel).filter(CategoriesModel.id == product.category_id)
+            category = await session.execute(query)
+            category = category.scalar_one()
+            products_list.append({
+                "name": product.name,
+                "description": product.description,
+                "image": product.image,
+                "price":  product.price,
+                "category": category.name,
+                "price_all": product_in_cart.price,
+                "quantity": product_in_cart.quantity,
+            })
+            await session.delete(product_in_cart)
+        order = OrdersModel(products_list=products_list, full_price=full_price, status="Создан", user_id=user_id)
+        session.add(order)
+        await session.commit()
+        return True
+
+async def select_me_orders(user_id):
+    async with Session() as session:
+        query = select(OrdersModel).filter(OrdersModel.user_id == user_id)
+        orders = await session.execute(query)
+        orders = orders.scalars().all()
+        orders_list = []
+        for order in orders:
+            orders_list.append({
+                "id": order.id,
+                "full_price": order.full_price,
+                "status": order.status,
+                "products_list": order.products_list
+            })
+        return orders_list
+
+async def select_orders():
+    async with Session() as session:
+        query = select(OrdersModel)
+        orders = await session.execute(query)
+        orders = orders.scalars().all()
+        orders_list = []
+        for order in orders:
+            orders_list.append({
+                "id": order.id,
+                "full_price": order.full_price,
+                "status": order.status,
+                "products_list": order.products_list
+            })
+        return orders_list
+
+async def select_order_id(id, user_id):
+    async with Session() as session:
+        is_admin = check_admin(user_id)
+        if is_admin:
+            query = select(OrdersModel).filter(OrdersModel.id == id)
+        else:
+            query = select(OrdersModel).filter((OrdersModel.id == id) & (OrdersModel.user_id == user_id))
+        order = await session.execute(query)
+        order = order.scalar_one_or_none()
+        if not order:
+            return False
+        return {"id": order.id,
+                "full_price": order.full_price,
+                "status": order.status,
+                "products_list": order.products_list
+            }
+
+async def update_status(id, status):
+    async with Session() as session:
+        query = select(OrdersModel).filter(OrdersModel.id == id)
+        order = await session.execute(query)
+        order = order.scalar_one_or_none()
+        if not order:
+            return False
+        order.status = status
+        await session.commit()
+        return {"id": order.id,
+                "full_price": order.full_price,
+                "status": order.status,
+                "products_list": order.products_list
+            }
