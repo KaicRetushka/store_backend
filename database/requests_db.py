@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import text
 import base64
 
-from database.models import Session, UsersModel, CategoriesModel, ProductsModel
+from database.models import Session, UsersModel, CategoriesModel, ProductsModel, CartModel
 
 async def insert_user(email, password, name):
     async with Session() as session:
@@ -188,6 +188,7 @@ async def update_product(name, price, description, image_bytes, category_id, use
 
 async def delete_product(product_id, user_id):
     async with Session() as session:
+        await session.execute(text("PRAGMA foreign_keys = ON"))
         is_admin = await check_admin(user_id)
         if is_admin:
             query = select(ProductsModel).filter(ProductsModel.id == product_id)
@@ -212,3 +213,69 @@ async def select_product_me(user_id):
                                   "description": product.description, "image": product.image,
                                   "category_id": product.category_id})
         return products_list
+
+async  def insert_product_in_cart(product_id, quantity, user_id):
+    async with Session() as session:
+        await session.execute(text("PRAGMA foreign_keys = ON"))
+        query = select(ProductsModel).filter(ProductsModel.id == product_id)
+        product = await session.execute(query)
+        product = product.scalar_one_or_none()
+        if not product:
+            return False
+        query = select(CartModel).filter((CartModel.product_id == product_id) & (CartModel.user_id == user_id))
+        cart = await session.execute(query)
+        cart = cart.scalar_one_or_none()
+        if cart:
+            cart.quantity = cart.quantity + quantity
+            cart.price = cart.price * cart.quantity
+            await session.commit()
+            return True
+        cart = CartModel(product_id=product_id, quantity=quantity, user_id=user_id, price=product.price * quantity)
+        session.add(cart)
+        await session.commit()
+        return True
+
+async def select_cart(user_id):
+    async with Session() as session:
+        query = select(CartModel).filter(CartModel.user_id == user_id)
+        products = await session.execute(query)
+        products = products.scalars().all()
+        full_price = 0
+        products_list = []
+        for product in products:
+            products_list.append({
+                "product_id": product.product_id,
+                "quantity": product.quantity,
+                "price": product.price
+            })
+            full_price += product.price
+        return {
+            "full_price": full_price,
+            "products_list": products_list
+        }
+
+async def update_product_in_cart(product_id, user_id, quantity):
+    async with Session() as session:
+        query = select(CartModel).filter((CartModel.product_id == product_id) & (CartModel.user_id == user_id))
+        product_in_cart = await session.execute(query)
+        product_in_cart = product_in_cart.scalar_one_or_none()
+        if not product_in_cart:
+            return False
+        product_in_cart.quantity = quantity
+        query = select(ProductsModel).filter(ProductsModel.id == product_id)
+        product = await session.execute(query)
+        product = product.scalar_one()
+        product_in_cart.price = quantity * product.price
+        await session.commit()
+        return True
+
+async def delete_product_in_cart(product_id, user_id):
+    async with Session() as session:
+        query = select(CartModel).filter((CartModel.product_id == product_id) & (CartModel.user_id == user_id))
+        product_in_cart = await session.execute(query)
+        product_in_cart = product_in_cart.scalar_one_or_none()
+        if not product_in_cart:
+            return False
+        await session.delete(product_in_cart)
+        await session.commit()
+        return True

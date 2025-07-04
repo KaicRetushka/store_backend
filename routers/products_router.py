@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request, UploadFile, File, Form, HTTPException
 from typing import List
+from pydantic import Field
 
 from jwt_settings import security, config
 from database.requests_db import (insert_product, select_products, select_product, update_product, delete_product,

@@ -5,6 +5,7 @@ import uvicorn
 import asyncio
 
 from routers.products_router import products_router
+from routers.cart_router import cart_router
 from routers.auth_router import auth_router
 from routers.categories_router import categories_router
 from database.models import create_db
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(products_router)
+app.include_router(cart_router)
 app.include_router(router=auth_router)
 app.include_router(router=categories_router)
 

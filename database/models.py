@@ -31,6 +31,13 @@ class ProductsModel(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
     salesman_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
+class CartModel(Base):
+    __tablename__ = "cart"
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    quantity: Mapped[int]
+    price: Mapped[int]
+
 async def create_db():
     async with engine.begin() as conn:
         # await conn.execute(text("PRAGMA foreign_keys = ON"))
